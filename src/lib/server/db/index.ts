@@ -70,10 +70,16 @@ export function getDb(): DB {
 		const pool = new NeonPool({ connectionString: url });
 		_db = drizzleNeon(pool, { schema, logger }) as unknown as DB;
 	} else {
+		// One pool per process, and on serverless that means one per instance.
+		// Keep it small: Neon's pooler multiplexes the real connections, and a
+		// large per-instance pool multiplies the connection count under load.
 		const pool = new NodePgPool({
 			connectionString: url,
-			max: 10,
-			ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+			max: env.NODE_ENV === 'production' ? 3 : 10,
+			// Verify the server certificate. Neon serves a publicly trusted chain,
+			// so `rejectUnauthorized: false` would only make the connection
+			// accept any certificate. Outside production the URL decides.
+			ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined
 		});
 		_db = drizzleNodePg(pool, { schema, logger });
 	}

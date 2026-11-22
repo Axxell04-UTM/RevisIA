@@ -25,6 +25,10 @@ export default defineConfig({
 		setupFiles: ['tests/setup.ts'],
 		// PGlite is a WASM Postgres: one child process per file is more stable
 		// than sharing a worker thread, and each file still gets its own database.
-		pool: 'forks'
+		pool: 'forks',
+		// One fork per file meant ~30 concurrent processes, each loading PGlite
+		// and exceljs. The machine ran out of memory and the exceljs test timed
+		// out, so the parallelism is capped to keep the suite reproducible.
+		maxWorkers: 4
 	}
 });
