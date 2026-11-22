@@ -60,7 +60,7 @@ odd/tasks/             notas de desarrollo por funcionalidad
 
 ## Requisitos
 
-- Node 20+
+- Node 22.17+ (lo exige SvelteKit 3; está declarado en `engines`)
 - pnpm 9+ (`engine-strict` está activo en `.npmrc`)
 - Una base Postgres (Neon o local)
 - Un bucket S3-compatible (Cloudflare R2)
@@ -129,6 +129,53 @@ pnpm test
 30 archivos bajo `tests/`, con Vitest y PGlite en memoria para los repositorios. Cubren
 render y presupuesto de tokens del prompt, extracción de archivos, ZIP malicioso, parseo
 de nombres de Moodle, matching, export de Excel, cifrado de claves y guardas de ruta.
+
+## Despliegue en Vercel
+
+El build usa `@sveltejs/adapter-vercel`: cada ruta se convierte en una función
+serverless. Vercel detecta SvelteKit solo; el comando de build es `pnpm build`.
+
+### 1. Variables de entorno
+
+Cargalas en *Project → Settings → Environment Variables* (Production y Preview):
+
+| Variable | Notas |
+|---|---|
+| `DATABASE_URL` | Cadena de Neon. Usá la del **pooler** (`-pooler`) en serverless |
+| `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
+| `BETTER_AUTH_URL` | `https://tu-app.vercel.app` |
+| `API_KEY_ENCRYPTION_KEY` | `openssl rand -base64 32` |
+| `R2_ACCOUNT_ID` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | O el bloque `FILEBASE_*` equivalente |
+| `AI_PROVIDER` / `AI_API_KEY` / `AI_MODEL` | Proveedor por defecto |
+
+`BETTER_AUTH_SECRET` y `API_KEY_ENCRYPTION_KEY` son **obligatorias en producción**: la app
+falla al arrancar si faltan, a propósito.
+
+### 2. Migrar la base una vez
+
+Desde tu máquina, apuntando a la base de producción:
+
+```bash
+DATABASE_URL="postgres://..." pnpm db:migrate
+DATABASE_URL="postgres://..." pnpm db:seed   # solo la primera vez
+```
+
+### 3. CORS del bucket
+
+Las subidas van del navegador directo al bucket con una URL prefirmada, así que el bucket
+tiene que aceptar el origen de Vercel:
+
+```bash
+pnpm cors:apply https://tu-app.vercel.app
+```
+
+Sin esto las subidas se bloquean en el preflight del navegador.
+
+### 4. Timeouts
+
+Las rutas pesadas (ingesta de ZIP, extracción, visión, calificación, metadatos y export a
+Excel) declaran `export const config = { maxDuration: 60 }`. 60 s es el máximo del plan
+Hobby; si estás en Pro podés subirlo hasta 300 s en esos mismos archivos.
 
 ## Documentación
 

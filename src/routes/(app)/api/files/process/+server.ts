@@ -1,6 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { processUploadedFile } from '#lib/server/file-extraction.js';
+import type { Config } from '@sveltejs/adapter-vercel';
+
+// Downloads the PDF and runs text extraction: CPU-bound, not a 10s call.
+export const config: Config = { maxDuration: 60 };
 
 /** POST /api/files/process
  *  Body: { fileId: string }

@@ -1,6 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { processUploadedFileWithVisionFallback } from '#lib/server/file-extraction.js';
+import type { Config } from '@sveltejs/adapter-vercel';
+
+// Vision fallback: one model call per page over a PDF without a text layer.
+export const config: Config = { maxDuration: 60 };
 
 /** POST /api/files/process-vision
  *  Body: { fileId: string }

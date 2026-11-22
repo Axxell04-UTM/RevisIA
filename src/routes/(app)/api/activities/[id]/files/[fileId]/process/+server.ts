@@ -4,6 +4,10 @@ import { isUuid } from '#lib/server/repositories/rubric.js';
 import { createSubmission, getFileProcessingState } from '#lib/server/repositories/submission.js';
 import { processUploadedFile } from '#lib/server/file-extraction.js';
 import { applySubmissionMetadata } from '#lib/server/metadata-extraction.js';
+import type { Config } from '@sveltejs/adapter-vercel';
+
+// Extraction plus the metadata model call for one file.
+export const config: Config = { maxDuration: 60 };
 
 /**
  * POST /api/activities/[id]/files/[fileId]/process

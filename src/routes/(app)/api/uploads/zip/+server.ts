@@ -6,6 +6,11 @@ import { activity, activityFile, file } from '#lib/server/db/schema/academic.js'
 import { getObjectBuffer, makeStorageKey, putObject } from '#lib/server/r2.js';
 import { extractSubmissionZip } from '#lib/server/zip-ingest.js';
 import { isUuid } from '#lib/server/repositories/rubric.js';
+import type { Config } from '@sveltejs/adapter-vercel';
+
+// Expanding a Moodle archive downloads it, unzips it and writes one file per
+// entry. It is the slowest route in the app, so it gets the platform maximum.
+export const config: Config = { maxDuration: 60 };
 
 /**
  * POST /api/uploads/zip

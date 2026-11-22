@@ -2,6 +2,10 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { isUuid } from '#lib/server/repositories/rubric.js';
 import { gradeSubmission } from '#lib/server/grading.js';
+import type { Config } from '@sveltejs/adapter-vercel';
+
+// One grading call to the model: the client drives the batch, one per request.
+export const config: Config = { maxDuration: 60 };
 
 /**
  * POST /api/submissions/[id]/grade

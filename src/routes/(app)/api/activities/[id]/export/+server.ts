@@ -4,6 +4,10 @@ import { getTemplate, isUuid } from '#lib/server/repositories/rubric.js';
 import { listSubmissions } from '#lib/server/repositories/submission.js';
 import { buildGradeExport } from '#lib/domain/export.js';
 import { buildGradeWorkbook } from '#lib/server/export-workbook.js';
+import type { Config } from '@sveltejs/adapter-vercel';
+
+// Building the .xlsx with exceljs is CPU-heavy for a large activity.
+export const config: Config = { maxDuration: 60 };
 
 /**
  * GET /api/activities/[id]/export — the grades of one activity as .xlsx.

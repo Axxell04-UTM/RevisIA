@@ -6,6 +6,10 @@ import {
 	extractSubmissionMetadata,
 	MetadataExtractionError
 } from '#lib/server/metadata-extraction.js';
+import type { Config } from '@sveltejs/adapter-vercel';
+
+// Metadata extraction is a model call over the document header.
+export const config: Config = { maxDuration: 60 };
 
 /**
  * POST /api/submissions/[id]/metadata
