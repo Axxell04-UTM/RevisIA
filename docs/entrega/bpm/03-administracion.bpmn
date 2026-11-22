@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_Administracion"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Administracion" name="P3 - Administración de docentes, asignaturas y claves" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Administracion">
+      <bpmn:lane id="Lane_Admin" name="Administrador">
+        <bpmn:flowNodeRef>StartEvent_Admin</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CrearAsignatura</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CrearDocente</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ConfigurarClave</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sistema_A" name="Sistema RevisIA">
+        <bpmn:flowNodeRef>Task_GenerarPassword</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CifrarClave</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Docente_A" name="Docente">
+        <bpmn:flowNodeRef>Task_IniciarSesion</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Password</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CambiarPassword</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AccederAsignaturas</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Admin</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="StartEvent_Admin" name="Nuevo docente">
+      <bpmn:outgoing>AFlow_01</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="Task_CrearAsignatura" name="Crear la asignatura">
+      <bpmn:incoming>AFlow_01</bpmn:incoming>
+      <bpmn:outgoing>AFlow_02</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_CrearDocente" name="Crear el docente y asignar asignaturas">
+      <bpmn:incoming>AFlow_02</bpmn:incoming>
+      <bpmn:outgoing>AFlow_03</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_GenerarPassword" name="Generar contraseña temporal">
+      <bpmn:incoming>AFlow_03</bpmn:incoming>
+      <bpmn:outgoing>AFlow_04</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_ConfigurarClave" name="Configurar la clave del proveedor">
+      <bpmn:incoming>AFlow_04</bpmn:incoming>
+      <bpmn:outgoing>AFlow_05</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_CifrarClave" name="Cifrar la clave con AES-256-GCM">
+      <bpmn:incoming>AFlow_05</bpmn:incoming>
+      <bpmn:outgoing>AFlow_06</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_IniciarSesion" name="Iniciar sesión con la cuenta">
+      <bpmn:incoming>AFlow_06</bpmn:incoming>
+      <bpmn:outgoing>AFlow_07</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Password" name="¿Debe cambiar la contraseña?" default="AFlow_10">
+      <bpmn:incoming>AFlow_07</bpmn:incoming>
+      <bpmn:outgoing>AFlow_08</bpmn:outgoing>
+      <bpmn:outgoing>AFlow_10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="Task_CambiarPassword" name="Definir nueva contraseña">
+      <bpmn:incoming>AFlow_08</bpmn:incoming>
+      <bpmn:outgoing>AFlow_09</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_AccederAsignaturas" name="Acceder a sus asignaturas">
+      <bpmn:incoming>AFlow_09</bpmn:incoming>
+      <bpmn:incoming>AFlow_10</bpmn:incoming>
+      <bpmn:outgoing>AFlow_11</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="EndEvent_Admin" name="Docente operativo">
+      <bpmn:incoming>AFlow_11</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="AFlow_01" sourceRef="StartEvent_Admin" targetRef="Task_CrearAsignatura" />
+    <bpmn:sequenceFlow id="AFlow_02" sourceRef="Task_CrearAsignatura" targetRef="Task_CrearDocente" />
+    <bpmn:sequenceFlow id="AFlow_03" sourceRef="Task_CrearDocente" targetRef="Task_GenerarPassword" />
+    <bpmn:sequenceFlow id="AFlow_04" sourceRef="Task_GenerarPassword" targetRef="Task_ConfigurarClave" />
+    <bpmn:sequenceFlow id="AFlow_05" sourceRef="Task_ConfigurarClave" targetRef="Task_CifrarClave" />
+    <bpmn:sequenceFlow id="AFlow_06" sourceRef="Task_CifrarClave" targetRef="Task_IniciarSesion" />
+    <bpmn:sequenceFlow id="AFlow_07" sourceRef="Task_IniciarSesion" targetRef="Gateway_Password" />
+    <bpmn:sequenceFlow id="AFlow_08" name="Sí, primera sesión" sourceRef="Gateway_Password" targetRef="Task_CambiarPassword" />
+    <bpmn:sequenceFlow id="AFlow_09" sourceRef="Task_CambiarPassword" targetRef="Task_AccederAsignaturas" />
+    <bpmn:sequenceFlow id="AFlow_10" name="No" sourceRef="Gateway_Password" targetRef="Task_AccederAsignaturas" />
+    <bpmn:sequenceFlow id="AFlow_11" sourceRef="Task_AccederAsignaturas" targetRef="EndEvent_Admin" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Administracion">
+    <bpmndi:BPMNPlane id="BPMNPlane_Administracion" bpmnElement="Process_Administracion">
+      <bpmndi:BPMNShape id="Lane_Admin_di" bpmnElement="Lane_Admin" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1700" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Sistema_A_di" bpmnElement="Lane_Sistema_A" isHorizontal="true">
+        <dc:Bounds x="160" y="220" width="1700" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Docente_A_di" bpmnElement="Lane_Docente_A" isHorizontal="true">
+        <dc:Bounds x="160" y="360" width="1700" height="140" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEvent_Admin_di" bpmnElement="StartEvent_Admin">
+        <dc:Bounds x="200" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="184" y="175" width="70" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CrearAsignatura_di" bpmnElement="Task_CrearAsignatura">
+        <dc:Bounds x="270" y="110" width="150" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CrearDocente_di" bpmnElement="Task_CrearDocente">
+        <dc:Bounds x="470" y="110" width="160" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_GenerarPassword_di" bpmnElement="Task_GenerarPassword">
+        <dc:Bounds x="470" y="255" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ConfigurarClave_di" bpmnElement="Task_ConfigurarClave">
+        <dc:Bounds x="680" y="110" width="150" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CifrarClave_di" bpmnElement="Task_CifrarClave">
+        <dc:Bounds x="680" y="255" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_IniciarSesion_di" bpmnElement="Task_IniciarSesion">
+        <dc:Bounds x="900" y="395" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_Password_di" bpmnElement="Gateway_Password" isMarkerVisible="true">
+        <dc:Bounds x="1110" y="405" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1084" y="462" width="102" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_CambiarPassword_di" bpmnElement="Task_CambiarPassword">
+        <dc:Bounds x="1200" y="395" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_AccederAsignaturas_di" bpmnElement="Task_AccederAsignaturas">
+        <dc:Bounds x="1420" y="395" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Admin_di" bpmnElement="EndEvent_Admin">
+        <dc:Bounds x="1620" y="412" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1596" y="455" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="AFlow_01_di" bpmnElement="AFlow_01">
+        <di:waypoint x="236" y="150" />
+        <di:waypoint x="270" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_02_di" bpmnElement="AFlow_02">
+        <di:waypoint x="420" y="150" />
+        <di:waypoint x="470" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_03_di" bpmnElement="AFlow_03">
+        <di:waypoint x="550" y="190" />
+        <di:waypoint x="550" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_04_di" bpmnElement="AFlow_04">
+        <di:waypoint x="620" y="290" />
+        <di:waypoint x="650" y="290" />
+        <di:waypoint x="650" y="150" />
+        <di:waypoint x="680" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_05_di" bpmnElement="AFlow_05">
+        <di:waypoint x="755" y="190" />
+        <di:waypoint x="755" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_06_di" bpmnElement="AFlow_06">
+        <di:waypoint x="830" y="290" />
+        <di:waypoint x="860" y="290" />
+        <di:waypoint x="860" y="430" />
+        <di:waypoint x="900" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_07_di" bpmnElement="AFlow_07">
+        <di:waypoint x="1050" y="430" />
+        <di:waypoint x="1110" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_08_di" bpmnElement="AFlow_08">
+        <di:waypoint x="1160" y="430" />
+        <di:waypoint x="1200" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_09_di" bpmnElement="AFlow_09">
+        <di:waypoint x="1350" y="430" />
+        <di:waypoint x="1420" y="430" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_10_di" bpmnElement="AFlow_10">
+        <di:waypoint x="1135" y="455" />
+        <di:waypoint x="1135" y="490" />
+        <di:waypoint x="1495" y="490" />
+        <di:waypoint x="1495" y="465" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="AFlow_11_di" bpmnElement="AFlow_11">
+        <di:waypoint x="1570" y="430" />
+        <di:waypoint x="1620" y="430" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

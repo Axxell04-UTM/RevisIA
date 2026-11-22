@@ -1,0 +1,14 @@
+-- Intentionally a no-op.
+--
+-- This migration duplicates every statement in 0005_dashing_madame_masque.sql
+-- (file.upload_context, file.metadata_*, submission.sha256, submission.deleted_at,
+-- submission.student_name nullability and the submission_activity_sha_uq index).
+-- Applying both in order fails with:
+--   column "upload_context" of relation "file" already exists
+-- which broke the test database and would break any fresh database.
+--
+-- 0005 is the canonical, drizzle-kit generated migration: it is recorded in
+-- drizzle/meta/_journal.json and matches drizzle/meta/0005_snapshot.json.
+-- This file is kept (empty) only so the journal entry and the already-applied
+-- migration history on existing databases stay consistent. Do not add
+-- statements here; create a new migration instead.

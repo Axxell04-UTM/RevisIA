@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  id="Definitions_Ingesta"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Ingesta" name="P1 - Ingesta de entregas desde Moodle" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_Ingesta">
+      <bpmn:lane id="Lane_Docente" name="Docente">
+        <bpmn:flowNodeRef>StartEvent_Inicio</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Descargar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Subir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Procesar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Confirmar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_Fin</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sistema" name="Sistema RevisIA">
+        <bpmn:flowNodeRef>Gateway_Formato</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Descomprimir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_ValidarArchivo</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Registrar</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Extraer</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="StartEvent_Inicio" name="Entrega recibida en Moodle">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:userTask id="Task_Descargar" name="Descargar las entregas desde Moodle">
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:userTask id="Task_Subir" name="Subir el paquete a la actividad">
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:exclusiveGateway id="Gateway_Formato" name="¿ZIP o archivo suelto?" default="Flow_05">
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+      <bpmn:outgoing>Flow_05</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_Descomprimir" name="Descomprimir y validar entradas">
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_06</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_ValidarArchivo" name="Validar firma y tamaño">
+      <bpmn:incoming>Flow_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:serviceTask id="Task_Registrar" name="Registrar archivos en staging">
+      <bpmn:incoming>Flow_06</bpmn:incoming>
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:outgoing>Flow_08</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_Procesar" name="Procesar archivos pendientes">
+      <bpmn:incoming>Flow_08</bpmn:incoming>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:serviceTask id="Task_Extraer" name="Extraer texto y metadatos con LLM">
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:userTask id="Task_Confirmar" name="Confirmar o corregir la identificación">
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="EndEvent_Fin" name="Entregas listas para calificar">
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="StartEvent_Inicio" targetRef="Task_Descargar" />
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_Descargar" targetRef="Task_Subir" />
+    <bpmn:sequenceFlow id="Flow_03" sourceRef="Task_Subir" targetRef="Gateway_Formato" />
+    <bpmn:sequenceFlow id="Flow_04" name="ZIP" sourceRef="Gateway_Formato" targetRef="Task_Descomprimir" />
+    <bpmn:sequenceFlow id="Flow_05" name="PDF / DOCX" sourceRef="Gateway_Formato" targetRef="Task_ValidarArchivo" />
+    <bpmn:sequenceFlow id="Flow_06" sourceRef="Task_Descomprimir" targetRef="Task_Registrar" />
+    <bpmn:sequenceFlow id="Flow_07" sourceRef="Task_ValidarArchivo" targetRef="Task_Registrar" />
+    <bpmn:sequenceFlow id="Flow_08" sourceRef="Task_Registrar" targetRef="Task_Procesar" />
+    <bpmn:sequenceFlow id="Flow_09" sourceRef="Task_Procesar" targetRef="Task_Extraer" />
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Task_Extraer" targetRef="Task_Confirmar" />
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="Task_Confirmar" targetRef="EndEvent_Fin" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Ingesta">
+    <bpmndi:BPMNPlane id="BPMNPlane_Ingesta" bpmnElement="Process_Ingesta">
+      <bpmndi:BPMNShape id="Lane_Docente_di" bpmnElement="Lane_Docente" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1560" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Sistema_di" bpmnElement="Lane_Sistema" isHorizontal="true">
+        <dc:Bounds x="160" y="220" width="1560" height="190" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="StartEvent_Inicio_di" bpmnElement="StartEvent_Inicio">
+        <dc:Bounds x="232" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="204" y="175" width="92" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Descargar_di" bpmnElement="Task_Descargar">
+        <dc:Bounds x="300" y="110" width="130" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Subir_di" bpmnElement="Task_Subir">
+        <dc:Bounds x="470" y="110" width="130" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Gateway_Formato_di" bpmnElement="Gateway_Formato" isMarkerVisible="true">
+        <dc:Bounds x="650" y="300" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="628" y="357" width="94" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Descomprimir_di" bpmnElement="Task_Descomprimir">
+        <dc:Bounds x="760" y="250" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_ValidarArchivo_di" bpmnElement="Task_ValidarArchivo">
+        <dc:Bounds x="760" y="340" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Registrar_di" bpmnElement="Task_Registrar">
+        <dc:Bounds x="960" y="300" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Procesar_di" bpmnElement="Task_Procesar">
+        <dc:Bounds x="1030" y="110" width="150" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Extraer_di" bpmnElement="Task_Extraer">
+        <dc:Bounds x="1220" y="300" width="150" height="70" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Confirmar_di" bpmnElement="Task_Confirmar">
+        <dc:Bounds x="1250" y="110" width="150" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Fin_di" bpmnElement="EndEvent_Fin">
+        <dc:Bounds x="1450" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1420" y="175" width="96" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="268" y="150" />
+        <di:waypoint x="300" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="430" y="150" />
+        <di:waypoint x="470" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03">
+        <di:waypoint x="600" y="150" />
+        <di:waypoint x="620" y="150" />
+        <di:waypoint x="620" y="325" />
+        <di:waypoint x="650" y="325" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04">
+        <di:waypoint x="675" y="300" />
+        <di:waypoint x="675" y="285" />
+        <di:waypoint x="760" y="285" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_05_di" bpmnElement="Flow_05">
+        <di:waypoint x="675" y="350" />
+        <di:waypoint x="675" y="375" />
+        <di:waypoint x="760" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_06_di" bpmnElement="Flow_06">
+        <di:waypoint x="910" y="285" />
+        <di:waypoint x="935" y="285" />
+        <di:waypoint x="935" y="335" />
+        <di:waypoint x="960" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07">
+        <di:waypoint x="910" y="375" />
+        <di:waypoint x="935" y="375" />
+        <di:waypoint x="935" y="335" />
+        <di:waypoint x="960" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08">
+        <di:waypoint x="1110" y="335" />
+        <di:waypoint x="1140" y="335" />
+        <di:waypoint x="1140" y="190" />
+        <di:waypoint x="1105" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="1180" y="150" />
+        <di:waypoint x="1200" y="150" />
+        <di:waypoint x="1200" y="335" />
+        <di:waypoint x="1220" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="1295" y="300" />
+        <di:waypoint x="1295" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11">
+        <di:waypoint x="1400" y="150" />
+        <di:waypoint x="1450" y="150" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

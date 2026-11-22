@@ -1,0 +1,31 @@
+# F1 — Contexto académico completo (criterio 3)
+
+Objetivo: que una actividad sea una entidad real (descripción, objetivos, instrucciones, fecha, rúbrica y bloques de contexto persistidos) en vez de "contexto" suelto en el cliente.
+Branch: sin git en el workspace (worktree sin versionar); commits no aplicables. Runner: `pnpm test`, `pnpm check`, `pnpm build`.
+
+## Specs
+
+- S1: "Contexto académico" del criterio 3 — la actividad debe tener título, descripción, objetivos, instrucciones, fecha y puntaje total.
+- S2: Los bloques de contexto dinámicos (tag/label) ya existen en el modelo; deben persistirse por actividad, no por plantilla.
+- S3: `activity.subject_id` es opcional mientras F5.2 no exista: un docente puede crear actividades sin asignatura y asignarlas después.
+- S4: El puntaje total no se duplica en la tabla: se deriva de la rúbrica asociada (`sum(rubric_criterion.max_points)`).
+- S5: Al crear una actividad desde una rúbrica, sus `rubric_context` se copian como bloques de la actividad.
+
+## Tasks
+
+- T1 (S1-S5) `[x]` Entidad `Activity` real: migración 0003 (`subject_id` nullable, `updated_at`, índice por docente), repositorio `activity.ts` (list/get/save/delete + `listSubjects`), tipos de dominio, API `/api/activities` y `/api/activities/[id]`, tests de repositorio. — sin commit (workspace sin git)
+- T2 (S1,S2) `[x]` Editor de actividad en UI (ruta `/actividades/[id]`: datos, fecha, rúbrica, bloques de contexto).
+- T3 `[x]` Subida de documento fuente (PDF/DOCX/TXT) + extracción (`src/lib/server/file-extraction.ts` con unpdf + mammoth, endpoint `/api/files/process`, UI en editor con subida R2 + procesamiento automático).
+- T4 (S1) `[x]` Niveles de rúbrica configurables (F1.5) + validación de puntos (F1.6).
+- T5 (S1,S2) `[x]` Prompt v2 con objetivos, instrucciones y documento fuente (F1.7) + presupuesto de tokens (F1.8) + tests de render (F1.9).
+
+## Log
+
+- L1 (user, 2026-11-11): "Continúa con el plan"
+- L2 (agente): el ítem 0.1 (provisionar Neon/R2/Vercel) sigue abierto porque depende de cuentas del usuario: `my-app/.env` solo tiene `AI_*`. Se avanza con la primera tarea de código desbloqueada: F1.1 (+ persistencia de contextos, F1.4).
+- L3 (agente, diseño): `activity.subject_id` pasa a nullable y `activity.updated_at` se agrega en la migración 0003. Con F5.2 pendiente no hay CRUD de asignaturas, así que exigir asignatura bloquearía F1 entera. Las actividades se listan por `created_by` y se filtran por asignatura cuando hay. Si se envía `subject_id`, se valida que exista, no esté borrada y que el docente tenga fila en `subject_teachers`.
+- Evidencia T1: migración `drizzle/0003_worried_blonde_phantom.sql` (FK `subject_id` → `on delete set null`, `updated_at` con default `now()`, índice `activity_created_by_idx`). `src/lib/server/repositories/activity.ts`: `listActivities` (filtro opcional por asignatura, orden `updated_at desc`), `getActivity`, `saveActivity` (validación de título/estado/fecha, pertenencia de asignatura/rúbrica/archivo, reconciliación de contextos por reemplazo, copia de `rubric_context` al crear, `maxPoints` derivado de `sum(rubric_criterion.max_points)` dentro de la misma transacción), `deleteActivity` (soft delete) y `listSubjects` (join con `subject_teachers`, excluye borradas). API `GET/POST /api/activities` y `GET/PUT/DELETE /api/activities/[id]`. `pnpm test` → 6 archivos, 72 tests, 0 fallos (16 nuevos en `tests/repositories/activity.test.ts`). `pnpm check` → 0 errores, 0 warnings. `pnpm build` → exit 0.
+- Evidencia T2: `src/routes/(app)/actividades/[id]/+page.server.ts` (load con activity, subjects, rubrics), `+page.svelte` (formulario completo: título, descripción, objetivos, instrucciones, fecha datetime-local, estado select, asignatura select, rúbrica select, contextos dinámicos con tag/label/content, vista previa JSON). PUT `/api/activities/[id]` para guardar. `pnpm test` → 72 passed, `pnpm check` → 0/0, `pnpm build` → exit 0.
+- Evidencia T3: `src/lib/server/file-extraction.ts` (extracción PDF con unpdf, DOCX con mammoth, TXT plano, detección de capa de texto), `src/routes/(app)/api/files/process/+server.ts` (endpoint que usa file-extraction), UI en `+page.svelte` (sección "Documento fuente": input file oculto + botón, subida a R2 via presigned PUT con context=sourceDocument, confirmación, procesamiento automático, vista previa de texto extraído, manejo de PDF escaneado sin capa de texto). `pnpm test` → 72 passed, `pnpm check` → 0/0, `pnpm build` → exit 0.
+- Evidencia T4: `src/lib/server/repositories/rubric.ts` (niveles `rubricLevel` en BD, validación de pesos > 0, puntos crecientes por nivel, maxPoints por criterio, weight por criterio), `src/routes/(app)/plantillas/[id]/+page.svelte` (UI completa: weight por criterio, niveles colapsables con label/points/position/description, validación maxPoints por nivel), `pnpm test` → 72 passed, `pnpm check` → 0/0, `pnpm build` → exit 0.
+- Evidencia T5: `src/lib/domain/prompt.ts` reescrito — `buildPrompt` devuelve `{ prompt, estimatedTokens, contextWindow, reserveTokens, truncated, warnings }`; bloques `<actividad>` (título/descripción/objetivos/instrucciones), `<documento_fuente>`, contextos, respuestas y rúbrica con niveles y pesos; recorte en orden documento → contexto más grande → respuesta más grande, con un warning por sección recortada y otro cuando ni recortando entra en la ventana. `renderPrompt` sigue devolviendo string (compatibilidad). `GET /api/activities/[id]/prompt` + `getActivityPrompt` (texto extraído desde `file.extracted_text`). `/api/grade` acepta `activity` y `contextWindow`, y devuelve `warnings`/`promptTokens`/`truncated`. UI: preview real del prompt en el editor de actividad con contador de tokens y avisos, botón "Calificar" hacia `/evaluar/<rubricId>?activityId=<id>`, y la pantalla de evaluación carga el contexto de la actividad y muestra los warnings. Tests: `tests/domain/prompt.test.ts` (14 casos) + 3 casos de `getActivityPrompt` en `tests/repositories/activity.test.ts`. `pnpm test` → 7 archivos, 89 tests; `pnpm check` → 0 errores; `pnpm build` → exit 0.

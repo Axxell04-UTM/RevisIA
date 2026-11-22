@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────────────────────
+# Dependencias
+# ─────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ─────────────────────────────────────────────────────────────
+# Build y salida del framework
+# ─────────────────────────────────────────────────────────────
+.svelte-kit/
+/build/
+.output/
+.vercel/
+.netlify/
+.wrangler/
+
+# ─────────────────────────────────────────────────────────────
+# Cachés de test y herramientas
+# ─────────────────────────────────────────────────────────────
+coverage/
+.vitest-cache/
+test-results/
+playwright-report/
+
+# ─────────────────────────────────────────────────────────────
+# Entorno y secretos — NUNCA subir
+# ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.test
+.neon
+
+# ─────────────────────────────────────────────────────────────
+# Logs
+# ─────────────────────────────────────────────────────────────
+*.log
+
+# ─────────────────────────────────────────────────────────────
+# Ruido del sistema operativo
+# ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─────────────────────────────────────────────────────────────
+# Scripts sueltos de un solo uso (algunos con credenciales
+# hardcodeadas: no van al repo, se recrean con variables de entorno)
+# ─────────────────────────────────────────────────────────────
+apply_migration.mjs
+promote_admin.mjs
+check_column.mjs
+check_db.mjs
+check_migrations.mjs
+check_users.mjs
+find_vn.mjs
+*.out
+build*.txt
+check*.txt
+test-output.txt
+test_out.txt
+drizzle_err.txt
+
+# ─────────────────────────────────────────────────────────────
+# Copias y carpetas de trabajo accidentales
+# ─────────────────────────────────────────────────────────────
+/-p/
+/dir/
+*.partial
+
+# ─────────────────────────────────────────────────────────────
+# Tooling de agentes (local, no forma parte del producto)
+# ─────────────────────────────────────────────────────────────
+.agents/
+.atl/
+skills-lock.json

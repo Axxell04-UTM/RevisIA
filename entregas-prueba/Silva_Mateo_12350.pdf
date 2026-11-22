@@ -1,0 +1,57 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 544 >>
+stream
+BT
+/F1 12 Tf
+16 TL
+50 792 Td
+(Universidad Nacional de Ejemplo) Tj
+T*
+(Programación I  Comisión 3) Tj
+T*
+(Trabajo Práctico 2: Ecuaciones) Tj
+T*
+(Mateo Silva) Tj
+T*
+(Legajo: 12350) Tj
+T*
+() Tj
+T*
+(Consigna 1: implementar el algoritmo de búsqueda binaria sobre un arreglo ordenado.) Tj
+T*
+(Describo el invariante del ciclo y muestro la traza para un arreglo de diez elementos.) Tj
+T*
+(Consigna 2: indicar la complejidad temporal y justificarla.) Tj
+T*
+(Cada iteración descarta la mitad del espacio de búsqueda, por lo que es O\(log n\).) Tj
+T*
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000836 00000 n 
+
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+933
+%%EOF
