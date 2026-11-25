@@ -384,8 +384,12 @@
 			return;
 		}
 
-		await uploadSubmissionsZip(file);
-		await processSubmissionsZip();
+		try {
+			await uploadSubmissionsZip(file);
+			await processSubmissionsZip();
+		} catch {
+			// `uploadSubmissionsZip` already turned the failure into visible state.
+		}
 	}
 
 	const SINGLE_LIMIT_BYTES = 25 * 1024 * 1024;
@@ -688,27 +692,38 @@
 	{:else}
 		<Card>
 			<CardHeader>
-				<div class="flex items-center justify-between">
+				<div class="flex items-center justify-between gap-2">
 					<CardTitle>Entregas de estudiantes</CardTitle>
-					{#if !submissionsZipFileId}
-						<Button size="sm" variant="outline" onclick={() => document.getElementById('submissions-zip-input')?.click()}>Subir ZIP</Button>
-					{:else}
-						<Button size="sm" variant="ghost" onclick={resetSubmissionsZip}>Quitar</Button>
-					{/if}
+					<div class="flex items-center gap-2">
+						<Button
+							size="sm"
+							variant="outline"
+							onclick={() => document.getElementById('submissions-zip-input')?.click()}
+							disabled={submissionsZipUploading || submissionsZipProcessing}
+						>
+							{submissionsZipFileId ? 'Agregar otro ZIP' : 'Subir ZIP'}
+						</Button>
+						{#if submissionsZipFileId}
+							<Button size="sm" variant="ghost" onclick={resetSubmissionsZip}>Quitar</Button>
+						{/if}
+					</div>
 				</div>
-				<CardDescription>ZIP con PDFs/DOCX de las entregas (máx 50 MB), o un PDF/DOCX suelto. Se preparan para revisión y matching con el padrón.</CardDescription>
+				<CardDescription>
+					ZIP con PDFs/DOCX de las entregas (máx 50 MB), o un PDF/DOCX suelto. Podés subir varios
+					ZIPs: cada uno agrega sus archivos a los pendientes para revisión y matching con el padrón.
+				</CardDescription>
 			</CardHeader>
 			<CardContent class="space-y-4">
+				<input
+					id="submissions-zip-input"
+					type="file"
+					accept=".zip"
+					class="hidden"
+					onchange={handleSubmissionsZipSelect}
+					disabled={submissionsZipUploading}
+				/>
 				{#if !submissionsZipFileId}
 					<div class="border-2 border-dashed border-border rounded-lg p-8 text-center">
-						<input
-							id="submissions-zip-input"
-							type="file"
-							accept=".zip"
-							class="hidden"
-							onchange={handleSubmissionsZipSelect}
-							disabled={submissionsZipUploading}
-						/>
 						<p class="text-sm text-muted-foreground mb-4">Arrastra un archivo .zip o haz clic en "Subir ZIP"</p>
 						<Button variant="outline" onclick={() => document.getElementById('submissions-zip-input')?.click()} disabled={submissionsZipUploading}>
 							{submissionsZipUploading ? 'Subiendo…' : 'Seleccionar archivo'}
@@ -722,9 +737,10 @@
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
 								</svg>
 								<div>
-									<p class="font-medium text-sm">ZIP de entregas subido</p>
+									<p class="font-medium text-sm">Último ZIP de entregas importado</p>
 									<p class="text-xs text-muted-foreground">
-										{submissionsZipStatus === 'uploaded' ? 'Subido, listo para procesar' :
+										{submissionsZipStatus === 'uploading' ? 'Subiendo ZIP…' :
+										 submissionsZipStatus === 'uploaded' ? 'Subido, listo para procesar' :
 										 submissionsZipStatus === 'processing' ? 'Procesando ZIP…' :
 										 submissionsZipStatus === 'done' ? `Completado: ${submissionsZipResult?.accepted ?? 0} aceptados, ${submissionsZipResult?.rejected ?? 0} rechazados` :
 										 submissionsZipStatus === 'error' ? 'Error' : 'Estado desconocido'}
