@@ -77,6 +77,58 @@ describe('buildProviderRequest', () => {
 	});
 });
 
+describe('buildProviderRequest — attachments', () => {
+	const PDF = { mimeType: 'application/pdf', data: 'JVBERi0xLjQ=', filename: 'entrega.pdf' };
+
+	it('sends OpenAI the PDF as a file part next to the text', () => {
+		const built = buildProviderRequest(request({ attachments: [PDF] }));
+		const content = (built.body as any).messages[1].content;
+
+		expect(content).toEqual([
+			{
+				type: 'file',
+				file: { filename: 'entrega.pdf', file_data: 'data:application/pdf;base64,JVBERi0xLjQ=' }
+			},
+			{ type: 'text', text: 'Extraé el encabezado' }
+		]);
+	});
+
+	it('keeps the OpenAI text-only prompt a plain string', () => {
+		const built = buildProviderRequest(request());
+		expect((built.body as any).messages[1].content).toBe('Extraé el encabezado');
+	});
+
+	it('sends Anthropic the PDF as a base64 document block', () => {
+		const built = buildProviderRequest(request({ provider: 'anthropic', attachments: [PDF] }));
+		const content = (built.body as any).messages[0].content;
+
+		expect(content).toEqual([
+			{
+				type: 'document',
+				source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0xLjQ=' }
+			},
+			{ type: 'text', text: 'Extraé el encabezado' }
+		]);
+		// The forced tool call still carries the schema that shapes the answer.
+		expect((built.body as any).tool_choice).toEqual({ type: 'tool', name: 'extraer_metadatos' });
+	});
+
+	it('sends Google the PDF as inline_data', () => {
+		const built = buildProviderRequest(request({ provider: 'google', attachments: [PDF] }));
+
+		expect((built.body as any).contents[0].parts).toEqual([
+			{ inline_data: { mime_type: 'application/pdf', data: 'JVBERi0xLjQ=' } },
+			{ text: 'Extraé el encabezado' }
+		]);
+	});
+
+	it('keeps the Google text-only request as a single text part', () => {
+		const built = buildProviderRequest(request({ provider: 'google' }));
+
+		expect((built.body as any).contents[0].parts).toEqual([{ text: 'Extraé el encabezado' }]);
+	});
+});
+
 describe('completeJson', () => {
 	it('parses the OpenAI JSON answer', async () => {
 		vi.stubGlobal(
@@ -86,6 +138,28 @@ describe('completeJson', () => {
 
 		const result = await completeJson({ prompt: 'x', schema: SCHEMA, provider: 'openai', apiKey: 'k', model: 'm' });
 		expect(result.raw).toEqual({ nombre: 'Ana' });
+	});
+
+	it('forwards an attachment to the provider body', async () => {
+		let sent: any;
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (_url: string, init: any) => {
+				sent = JSON.parse(init.body);
+				return new Response(JSON.stringify({ choices: [{ message: { content: '{"nombre":"Ana"}' } }] }));
+			})
+		);
+
+		await completeJson({
+			prompt: 'x',
+			schema: SCHEMA,
+			provider: 'openai',
+			apiKey: 'k',
+			model: 'm',
+			attachments: [{ mimeType: 'application/pdf', data: 'JVBERi0xLjQ=' }]
+		});
+
+		expect(sent.messages[1].content[0].type).toBe('file');
 	});
 
 	it('reads the tool call input from Anthropic', async () => {

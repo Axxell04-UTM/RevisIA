@@ -26,6 +26,32 @@ export function isProviderName(value: unknown): value is ProviderName {
 	return typeof value === 'string' && PROVIDER_NAMES.includes(value);
 }
 
+/**
+ * One document that travels with the prompt as provider-native content.
+ *
+ * All three providers read PDFs, but each names it differently: OpenAI only
+ * accepts a PDF as a `file` part on Chat Completions, Anthropic uses a
+ * `document` block, Google uses `inline_data`. The attachment is the same bytes
+ * with three wire shapes, so `data` is already base64 and the callers never
+ * encode anything themselves.
+ */
+export type DocumentAttachment = {
+	mimeType: string;
+	/** Base64 of the raw file. */
+	data: string;
+	filename?: string;
+};
+
+/**
+ * Largest PDF attached to a grading call.
+ *
+ * Base64 inflates a file by ~37%, so a 12 MB PDF becomes a ~16.4 MB request
+ * body: below Gemini's ~20 MB inline limit, Anthropic's 32 MB and OpenAI's
+ * 50 MB. Anything bigger is graded from its extracted text instead of turning
+ * a size problem into a failed call.
+ */
+export const MAX_ATTACHED_PDF_BYTES = 12 * 1024 * 1024;
+
 export type StructuredRequest = {
 	provider: ProviderName;
 	apiKey: string;
@@ -40,6 +66,8 @@ export type StructuredRequest = {
 	toolDescription: string;
 	/** OpenAI names the JSON schema; kept separate from the Anthropic tool name. */
 	schemaName: string;
+	/** Documents sent ahead of the prompt, so the model reads them as context. */
+	attachments?: DocumentAttachment[];
 };
 
 export type ProviderRequest = {
@@ -64,6 +92,8 @@ export type JsonCompletionOptions = {
 	schemaName?: string;
 	/** Owner of the call: their configured provider/model and their API key. */
 	teacherId?: string | null;
+	/** Documents the model must read alongside the prompt (a PDF, today). */
+	attachments?: DocumentAttachment[];
 	/** Forces the retry model, overriding the configured fallback. */
 	fallbackModel?: string | null;
 	/** Optional overrides so tests never depend on the ambient environment. */
@@ -73,7 +103,12 @@ export type JsonCompletionOptions = {
 	baseUrl?: string;
 };
 
-export type GradeRequest = { prompt: string; schema: object; teacherId?: string | null };
+export type GradeRequest = {
+	prompt: string;
+	schema: object;
+	teacherId?: string | null;
+	attachments?: DocumentAttachment[];
+};
 
 /**
  * A provider answered with an HTTP error.
@@ -99,11 +134,17 @@ export class ProviderHttpError extends Error {
 
 const DEFAULT_SYSTEM = 'Respondé únicamente con JSON válido.';
 
-export async function gradeWithAI({ prompt, schema, teacherId }: GradeRequest): Promise<StructuredResult> {
+export async function gradeWithAI({
+	prompt,
+	schema,
+	teacherId,
+	attachments
+}: GradeRequest): Promise<StructuredResult> {
 	return completeJson({
 		prompt,
 		schema,
 		teacherId,
+		attachments,
 		system: 'Sos un revisor académico riguroso. Respondé únicamente con JSON válido.',
 		temperature: 0.2,
 		toolName: 'calificar',
@@ -212,7 +253,8 @@ async function requestOnce(
 		temperature: options.temperature ?? 0.2,
 		toolName: options.toolName ?? 'responder',
 		toolDescription: options.toolDescription ?? 'Devuelve la respuesta estructurada',
-		schemaName: options.schemaName ?? 'respuesta'
+		schemaName: options.schemaName ?? 'respuesta',
+		attachments: options.attachments
 	});
 
 	const res = await fetch(request.url, {
@@ -255,7 +297,8 @@ function buildOpenAIRequest({
 	schema,
 	system,
 	temperature,
-	schemaName
+	schemaName,
+	attachments
 }: StructuredRequest): ProviderRequest {
 	return {
 		url: `${baseUrl || 'https://api.openai.com/v1'}/chat/completions`,
@@ -265,7 +308,7 @@ function buildOpenAIRequest({
 			temperature,
 			messages: [
 				{ role: 'system', content: system },
-				{ role: 'user', content: prompt }
+				{ role: 'user', content: openAiContent(prompt, attachments) }
 			],
 			response_format: {
 				type: 'json_schema',
@@ -279,6 +322,25 @@ function buildOpenAIRequest({
 	};
 }
 
+/**
+ * Chat Completions takes a PDF only as a `file` part, and only as a content
+ * array: a bare string prompt stays a string so the text-only path is
+ * byte-for-byte what it was before attachments existed.
+ */
+function openAiContent(prompt: string, attachments?: DocumentAttachment[]) {
+	if (!attachments?.length) return prompt;
+	return [
+		...attachments.map((attachment) => ({
+			type: 'file' as const,
+			file: {
+				filename: attachment.filename ?? 'documento.pdf',
+				file_data: `data:${attachment.mimeType};base64,${attachment.data}`
+			}
+		})),
+		{ type: 'text' as const, text: prompt }
+	];
+}
+
 function buildAnthropicRequest({
 	apiKey,
 	model,
@@ -287,7 +349,8 @@ function buildAnthropicRequest({
 	system,
 	temperature,
 	toolName,
-	toolDescription
+	toolDescription,
+	attachments
 }: StructuredRequest): ProviderRequest {
 	return {
 		url: 'https://api.anthropic.com/v1/messages',
@@ -301,7 +364,7 @@ function buildAnthropicRequest({
 			max_tokens: 4096,
 			temperature,
 			system,
-			messages: [{ role: 'user', content: prompt }],
+			messages: [{ role: 'user', content: anthropicContent(prompt, attachments) }],
 			tools: [
 				{
 					name: toolName,
@@ -314,18 +377,34 @@ function buildAnthropicRequest({
 	};
 }
 
+function anthropicContent(prompt: string, attachments?: DocumentAttachment[]) {
+	if (!attachments?.length) return prompt;
+	return [
+		...attachments.map((attachment) => ({
+			type: 'document' as const,
+			source: {
+				type: 'base64' as const,
+				media_type: attachment.mimeType,
+				data: attachment.data
+			}
+		})),
+		{ type: 'text' as const, text: prompt }
+	];
+}
+
 function buildGoogleRequest({
 	apiKey,
 	model,
 	prompt,
 	schema,
-	temperature
+	temperature,
+	attachments
 }: StructuredRequest): ProviderRequest {
 	return {
 		url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
 		headers: { 'Content-Type': 'application/json' },
 		body: {
-			contents: [{ role: 'user', parts: [{ text: prompt }] }],
+			contents: [{ role: 'user', parts: googleParts(prompt, attachments) }],
 			generationConfig: {
 				temperature,
 				responseMimeType: 'application/json',
@@ -333,6 +412,15 @@ function buildGoogleRequest({
 			}
 		}
 	};
+}
+
+function googleParts(prompt: string, attachments?: DocumentAttachment[]) {
+	return [
+		...(attachments ?? []).map((attachment) => ({
+			inline_data: { mime_type: attachment.mimeType, data: attachment.data }
+		})),
+		{ text: prompt }
+	];
 }
 
 function extractRaw(provider: ProviderName, data: Record<string, any>): unknown {

@@ -1,4 +1,5 @@
-import { gradeWithAI } from './ai.js';
+import { gradeWithAI, MAX_ATTACHED_PDF_BYTES, type DocumentAttachment } from './ai.js';
+import { getObjectBuffer } from './r2.js';
 import { buildPrompt } from '#lib/domain/prompt.js';
 import type { PromptExtras } from '#lib/domain/prompt.js';
 import { normalizeGrades } from '#lib/domain/normalize.js';
@@ -30,6 +31,42 @@ export type SubmissionGradingResult = {
 /** Activity contexts keyed by tag, which is how `buildPrompt` reads them. */
 function contextsByTag(activity: { contexts: { tag: string; content: string }[] }) {
 	return Object.fromEntries(activity.contexts.map((c) => [c.tag, c.content ?? '']));
+}
+
+/**
+ * Reads the delivery's original PDF so it can travel with the prompt.
+ *
+ * The extracted text is a transcription: images, charts and formulas inside the
+ * document never reach it. Attaching the file itself is what lets the model see
+ * them, so a failure here is reported as a warning and the delivery is still
+ * graded from its text instead of failing the whole call.
+ */
+async function loadDeliveryAttachment(
+	main: { mime: string; storageKey: string; sizeBytes: number; fileName: string }
+): Promise<{ attachment?: DocumentAttachment; warning?: string }> {
+	if (main.mime !== 'application/pdf') return {};
+	if (main.sizeBytes > MAX_ATTACHED_PDF_BYTES) {
+		return {
+			warning:
+				'El PDF original supera el tamaño que se puede adjuntar al modelo: se calificó con el texto extraído.'
+		};
+	}
+
+	try {
+		const bytes = await getObjectBuffer(main.storageKey);
+		return {
+			attachment: {
+				mimeType: 'application/pdf',
+				data: bytes.toString('base64'),
+				filename: main.fileName
+			}
+		};
+	} catch {
+		return {
+			warning:
+				'No se pudo leer el PDF original desde el almacenamiento: se calificó con el texto extraído.'
+		};
+	}
 }
 
 /**
@@ -67,12 +104,17 @@ export async function gradeSubmission(
 
 	const answer: Answer = { id: `sub-${submissionId}`, student: label, text: main.extractedText };
 
+	// The PDF goes with the prompt when it fits: the extracted text cannot carry
+	// the images, charts or formulas the document contains.
+	const { attachment, warning: attachmentWarning } = await loadDeliveryAttachment(main);
+
 	const extras: PromptExtras = {
 		title: activity.title,
 		description: activity.description,
 		objectives: activity.objectives,
 		instructions: activity.instructions,
-		sourceDocument
+		sourceDocument,
+		deliveryDocument: Boolean(attachment)
 	};
 
 	const built = buildPrompt(template, contexts, [{ student: answer.student, text: answer.text }], {
@@ -82,7 +124,8 @@ export async function gradeSubmission(
 	const { raw, provider, model } = await gradeWithAI({
 		prompt: built.prompt,
 		schema: GRADE_JSON_SCHEMA,
-		teacherId
+		teacherId,
+		attachments: attachment ? [attachment] : undefined
 	});
 
 	const [grade] = normalizeGrades(raw, [answer], template.criteria);
@@ -110,6 +153,6 @@ export async function gradeSubmission(
 		model,
 		promptTokens: built.estimatedTokens,
 		truncated: built.truncated,
-		warnings: built.warnings
+		warnings: attachmentWarning ? [...built.warnings, attachmentWarning] : built.warnings
 	};
 }

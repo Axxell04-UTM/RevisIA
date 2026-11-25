@@ -22,9 +22,10 @@ Universidad Técnica de Manabí.
   entrega, con una sola calificación.
 - **Contexto académico completo**: actividad con descripción, objetivos, instrucciones,
   documento fuente y contextos adicionales; rúbrica con criterios, niveles y puntajes.
-- **Calificación por rúbrica**: el modelo devuelve un puntaje por criterio y
-  retroalimentación corta; el total se recalcula en código y los puntajes se acotan a los
-  límites de cada criterio.
+- **Calificación por rúbrica**: el modelo recibe el PDF original de la entrega como documento
+  adjunto (no solo el texto extraído), así que también ve imágenes, gráficos, tablas y
+  fórmulas. Devuelve un puntaje por criterio y retroalimentación corta; el total se
+  recalcula en código y los puntajes se acotan a los límites de cada criterio.
 - **Export a Excel**: `.xlsx` con estudiante, título, calificación por criterio y total.
   Las entregas sin calificar aparecen igual, con su estado.
 - **Administración**: un administrador gestiona docentes, asignaturas y API keys de los
@@ -40,6 +41,7 @@ Universidad Técnica de Manabí.
 | Autenticación | Better Auth (email/password + roles `admin` / `docente`) |
 | IA | OpenAI-compatible, Anthropic o Google |
 | Extracción | `unpdf` (PDF), `mammoth` (DOCX), `yauzl` (ZIP) |
+| Documentos al modelo | PDF nativo (`file` en OpenAI, `document` en Anthropic, `inline_data` en Google) |
 | Excel | `exceljs` |
 | Tests | Vitest + PGlite en memoria |
 

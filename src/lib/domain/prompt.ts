@@ -11,6 +11,12 @@ export type PromptExtras = {
   objectives?: string;
   instructions?: string;
   sourceDocument?: string;
+  /**
+   * True when the delivery's original file travels with the prompt as an
+   * attachment. The prompt then points the model at it for everything the
+   * extracted text cannot represent: images, charts, tables, formulas.
+   */
+  deliveryDocument?: boolean;
 };
 
 export type PromptBuildOptions = {
@@ -231,6 +237,13 @@ function compose(
 
   const rubrica = `<rubrica>\n${criteriaList}\n</rubrica>\n`;
 
+  const attachedDocument = extras.deliveryDocument
+    ? `<documento_adjunto>
+La entrega original viaja adjunta como archivo PDF. Leela completa: las imágenes, gráficos, tablas, fórmulas y diagramas que el texto de arriba no puede representar están solo ahí. Si el texto extraído y el PDF difieren, el PDF es la fuente de verdad.
+</documento_adjunto>
+`
+    : '';
+
   const instructions = `
 Devolvé **únicamente** un objeto JSON válido que respete el esquema solicitado.
 Para cada respuesta, devolvé en el mismo orden recibido una entrada con:
@@ -243,7 +256,7 @@ Si un criterio define niveles, elegí el nivel que corresponda y usá sus puntos
 No agregues texto adicional fuera del JSON.
 `.trim();
 
-  return [header, activity, tarea, sourceDocument, contextBlocks, answersBlocks, rubrica, instructions]
+  return [header, activity, tarea, sourceDocument, contextBlocks, answersBlocks, attachedDocument, rubrica, instructions]
     .filter((part) => part.trim().length > 0)
     .join('\n\n');
 }

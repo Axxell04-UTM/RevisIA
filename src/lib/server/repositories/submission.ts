@@ -751,6 +751,10 @@ export type SubmissionMainFile = {
 	fileId: string;
 	fileName: string;
 	mime: string;
+	/** Where the bytes live in R2: grading re-reads the PDF to attach it. */
+	storageKey: string;
+	/** Declared size, used to decide whether the PDF fits in a model request. */
+	sizeBytes: number;
 	extraction: 'pending' | 'ok' | 'empty' | 'failed';
 	extractedText: string | null;
 	/** Editable values already stored on the delivery. */
@@ -784,6 +788,8 @@ export async function getSubmissionMainFile(
 			fileId: file.id,
 			fileName: file.originalName,
 			mime: file.mime,
+			storageKey: file.storageKey,
+			sizeBytes: file.sizeBytes,
 			extraction: file.extraction,
 			extractedText: file.extractedText,
 			title: submission.title,
@@ -820,6 +826,8 @@ export async function getSubmissionMainFile(
 		fileId: row.fileId,
 		fileName: row.fileName,
 		mime: row.mime,
+		storageKey: row.storageKey,
+		sizeBytes: row.sizeBytes,
 		extraction: row.extraction as SubmissionMainFile['extraction'],
 		extractedText: row.extractedText,
 		title: row.title,
